@@ -1,0 +1,76 @@
+# Be careful to keep the total length of the payload within your network's MTU
+#    Fast Ethernet (1432) - This is most likely for Intranets.
+#    Gigabit Ethernet (8932) - Jumbo frames can make use of this feature much more efficient.
+#    Commodity Internet (512) - If you are routing over the internet a value in this range will be reasonable. You might be able to go higher, but you are at the mercy of all the hops in your route.
+frame: 1432
+
+flush_period: 10s
+
+retentions:
+  - title: Default
+    pattern: ^stats.*
+    retention:
+      - frequency: default
+        keep: 6h
+      - frequency: 1m
+        keep: 3d
+      - frequency: 5m
+        keep: 1w
+      - frequency: 15m
+        keep: 5y
+  - title: Ping
+    description: Ping history
+    pattern: ^stats.ping.*
+    retention:
+      - frequency: default
+        keep: 1h
+      - frequency: 1h
+        keep: 5y
+
+aggregations:
+  - name: lower
+    description: Minimal value for timers
+    pattern: \.lower(_\d+)?$
+    factor: 0.1
+    method: min
+  - name: upper
+    pattern: \.upper(_\d+)?$
+    factor: 0.1
+    method: max
+
+metrics:
+  - name: auth.sign_in.invalid_password
+    type: counter
+    title: Invalid login or password
+    description: Counts total user failures
+    retention:
+      - frequency: default
+        keep: 1h
+      - frequency: 15m
+        keep: 1d
+      - frequency: 1h
+        keep: 5y
+  - name:
+      - auth
+      - sign_up
+      - confirmation
+      - $provider
+      - delay
+    type: timer
+    title: Signup confirmation delay for provider
+    histogram:
+      - 0.1
+      - 0.5
+      - 1
+      - 10
+      - 100
+      - 1000
+      - inf
+    id_vars:
+      - name: $provider
+        enum:
+          - sms
+          - email
+  - name: users.logged_in
+    type: gauge
+    title: Users logged in
