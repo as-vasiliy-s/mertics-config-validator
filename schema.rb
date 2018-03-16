@@ -1,10 +1,10 @@
 require 'dry-validation'
 require 'yaml'
+require 'pp'
 
 module Schema
 
   DURATION = /^\d+[smhdwy]$/
-  DURATION_OR_DEFAULT = /^(default|\d+[smhdwy])$/
 
   ID_NAME = /[[:alpha:]][[:alnum:]]*(_[[:alnum:]]+)*/
   ID_PART = /\$?#{ID_NAME}/
@@ -13,53 +13,48 @@ module Schema
   ID_VAR = /^\$#{ID_NAME}$/
 
   Retention = Dry::Validation.Schema do
-    required(:frequency).filled(:str?, format?: DURATION_OR_DEFAULT)
+    required(:frequency).filled(:str?, format?: DURATION)
     required(:keep).filled(:str?, format?: DURATION)
   end
 
-  RetentionRule = Dry::Validation.Schema do
-    required(:title).filled(:str?, min_size?: 3)
-    optional(:description).filled(:str?, min_size?: 3)
-    required(:pattern).filled(:str?)
-    required(:retention).each(Retention)
-  end
-
-  AggregationRule = Dry::Validation.Schema do
-    required(:name).filled(:str?, format?: /^#{ID_NAME}$/)
-    optional(:description).filled(:str?, min_size?: 3)
-    required(:pattern).filled(:str?)
-    required(:factor).filled(:float?, included_in?: 0.0..1.0)
-    required(:method).filled(:str?, included_in?: %w[average sum min max and last])
-  end
-
-  IdVar = Dry::Validation.Schema do
-    required(:name).filled(:str?, format?: ID_VAR)
-    optional(:enum).each(:str?)
-    optional(:regexp).filled(:str?)
-  end
-
   Metric = Dry::Validation.Schema do
-    required(:name) do
-      each(:str?, format?: ID_SHORT) | filled? & str? & format?(ID_FULL)
-    end
+    # required(:name).filled(:str?, format?: ID_FULL)
     required(:type).filled(:str?, included_in?: %w[counter timer gauge set])
 
-    optional(:title).filled(:str?, min_size?: 3)
     optional(:description).filled(:str?, min_size?: 3)
 
     optional(:retention).each(Retention)
 
-    optional(:id_vars).each(IdVar)
     optional(:histogram).each do
       int? & gteq?(0) | float? & gteq?(0) | str? & eql?('inf')
     end
   end
 
   Main = Dry::Validation.Schema do
-    required(:frame).filled(:int?, gt?: 0)
     required(:flush_period).filled(:str?, format?: DURATION)
-    required(:retentions).each(RetentionRule)
-    required(:aggregations).each(AggregationRule)
-    required(:metrics).each(Metric)
+    required(:retention).each(Retention)
+    # required(:metrics_).each(Metric)
+    required(:metrics).filled
+
+    configure do
+      def self.messages
+        super.merge en: { errors: {
+            metrics_names: 'some metrics names is not valid',
+            metrics_schemas: 'some metrics is not valid'
+        } }
+      end
+    end
+
+    validate(metrics_names: :metrics) do |metrics|
+      metrics.keys.all? { |name| name =~ ID_FULL }
+    end
+
+    validate(metrics_schemas: :metrics) do |metrics|
+      metrics.all? do |name, metric|
+        check_result = Metric.call(metric)
+        puts """#{name}"" => #{check_result.messages.pretty_inspect}" if check_result.failure?
+        check_result.success?
+      end
+    end
   end
 end
