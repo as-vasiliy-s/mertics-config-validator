@@ -33,6 +33,7 @@ module Schema
   Main = Dry::Validation.Schema do
     required(:flush_period).filled(:str?, format?: DURATION)
     required(:retention).each(Retention)
+    required(:percentile).each { int? | float? }
     # required(:metrics_).each(Metric)
     required(:metrics).filled
 
@@ -52,7 +53,7 @@ module Schema
     validate(metrics_schemas: :metrics) do |metrics|
       metrics.all? do |name, metric|
         check_result = Metric.call(metric)
-        puts """#{name}"" => #{check_result.messages.pretty_inspect}" if check_result.failure?
+        puts "" "#{name}" " => #{check_result.messages.pretty_inspect}" if check_result.failure?
         check_result.success?
       end
     end

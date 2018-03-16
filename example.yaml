@@ -8,6 +8,11 @@ retention:
   - frequency: 5m
     keep: 10w
 
+percentile:
+  - 50
+  - 90
+  - 95
+
 metrics:
   auth.sign_in.invalid_password:
     type: counter
@@ -18,6 +23,9 @@ metrics:
       - frequency: 1m
         keep: 3d
 
+  # Timer metrics
+  # All: std, upper, lower, count, count_ps, sum, sum_squares, mean, median
+  # For percentiles: upper, lower, count, sum, sum_squares, mean
   auth.sign_up.confirmation.sms.delay: &auth__sign_up__confirmation__delay
     type: timer
     histogram:
